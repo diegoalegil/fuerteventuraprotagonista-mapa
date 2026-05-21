@@ -250,7 +250,7 @@
       transition: transform 0.32s cubic-bezier(.4,.0,.2,1);
       z-index: 10;
     }
-    #sidebar.expanded { transform: translateY(0); }
+    #sidebar.expanded { transform: translateY(0) !important; }
     .drag-handle {
       display: block;
       position: relative;
@@ -333,7 +333,7 @@
 <body>
 <div id="container">
   <aside id="sidebar">
-    <button type="button" class="drag-handle" id="drag-handle" aria-label="Mostrar u ocultar panel"></button>
+    <button type="button" class="drag-handle" id="drag-handle" aria-label="Mostrar u ocultar panel" aria-expanded="false"></button>
     <header class="sidebar-header">
       <h1>Fuerteventura Protagonista</h1>
       <p>Mapa de agentes</p>
@@ -342,9 +342,9 @@
       <div class="sidebar-search">
         <input id="search" class="search-input" type="text" placeholder="Buscar por nombre, municipio, sector…" autocomplete="off" />
       </div>
-      <div class="controls">
-        <button id="btn-2d" class="active">2D</button>
-        <button id="btn-3d">3D</button>
+      <div class="controls" role="group" aria-label="Vista del mapa">
+        <button id="btn-2d" class="active" aria-pressed="true">2D</button>
+        <button id="btn-3d" aria-pressed="false">3D</button>
         <button id="btn-fit">Centrar</button>
       </div>
       <details class="sector-filter" open>
@@ -404,16 +404,18 @@ function flyToMunicipios(municipios) {
   if (sw[0] < 180) map.fitBounds([sw, ne], opts);
 }
 
+// Colores derivados de la paleta tierra de Fuerteventura Protagonista.
+// Todos cumplen contraste WCAG AA (>=4.5:1) sobre texto blanco — verificado en commit.
 const SECTOR_COLORS = {
   'Administración pública': '#534a44',
-  'Asociación ciudadana': '#A87F4E',
+  'Asociación ciudadana': '#8E6235',
   'Cultura y patrimonio': '#8E5A3C',
   'Educación': '#6B7042',
-  'Servicios sociales': '#B47545',
+  'Servicios sociales': '#94582F',
   'Mayores': '#7C5C42',
   'Mujer e igualdad': '#A05E5E',
   'Medio ambiente': '#4F5A3E',
-  'Sin sector': '#999999'
+  'Sin sector': '#6E6E6E'
 };
 
 function normalize(s) {
@@ -481,10 +483,23 @@ let activeMunicipios = new Set();
 let searchQuery = '';
 let currentMode = '2d';
 let zonesData = null;
+const seenMapErrors = new Set();
 
 async function load() {
+  if (typeof mapboxgl === 'undefined' || typeof turf === 'undefined') {
+    console.error('Mapbox GL JS o Turf no se cargaron desde la CDN.');
+    const list = document.getElementById('entity-list');
+    if (list) list.innerHTML = '<div class="empty">No se pudieron cargar las librerías de mapa (Mapbox/Turf). Revisa tu conexión.</div>';
+    const count = document.getElementById('results-count');
+    if (count) count.textContent = '!';
+    const mapEl = document.getElementById('map');
+    if (mapEl) mapEl.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:#FAF7F1;color:#534a44;font-weight:600;text-align:center;padding:32px;">No se pudo cargar el mapa.<br><span style="font-weight:400;color:#888;font-size:13px;">Revisa la conexión y recarga.</span></div>';
+    return;
+  }
   try {
-    const resp = await fetch(GEOJSON_URL);
+    // Cache busting: el geojson cambia con cada despliegue. Sin este parámetro
+    // el navegador podría servir una versión cacheada antigua con datos viejos.
+    const resp = await fetch(`${GEOJSON_URL}?v=${Date.now()}`, { cache: 'no-cache' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     GEOJSON = await resp.json();
   } catch (err) {
@@ -568,18 +583,21 @@ function initSidebar() {
   const dragHandle = document.getElementById('drag-handle');
   if (dragHandle) {
     dragHandle.addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('expanded');
+      const expanded = document.getElementById('sidebar').classList.toggle('expanded');
+      dragHandle.setAttribute('aria-expanded', String(expanded));
     });
   }
 
   document.getElementById('btn-2d').addEventListener('click', () => setView('2d'));
   document.getElementById('btn-3d').addEventListener('click', () => setView('3d'));
   document.getElementById('btn-fit').addEventListener('click', () => {
-    document.getElementById('btn-2d').classList.add('active');
-    document.getElementById('btn-3d').classList.remove('active');
+    const btn2 = document.getElementById('btn-2d');
+    const btn3 = document.getElementById('btn-3d');
+    btn2.classList.add('active'); btn2.setAttribute('aria-pressed', 'true');
+    btn3.classList.remove('active'); btn3.setAttribute('aria-pressed', 'false');
     currentMode = '2d';
     setTowersVisible(false);
-    map.fitBounds(FUERTEVENTURA_BOUNDS, { padding: 40, pitch: 0, bearing: 0, duration: 1200 });
+    if (map) map.fitBounds(FUERTEVENTURA_BOUNDS, { padding: 40, pitch: 0, bearing: 0, duration: 1200 });
   });
 }
 
@@ -670,6 +688,37 @@ function flyToFeature(f) {
   const pitchKeep = currentMode === '3d' ? 65 : 0;
   const bearingKeep = currentMode === '3d' ? -17 : 0;
   map.flyTo({ center: coords, zoom: 16, pitch: pitchKeep, bearing: bearingKeep, duration: 1500 });
+}
+
+// Normaliza errores de Mapbox para logs y dedup. Redacta el access_token de
+// las URLs y reduce tiles a su template {z}/{x}/{y} para no spamear la consola.
+function formatMapError(err, event) {
+  const parts = [];
+  const normalizeValue = (key, value) => {
+    const text = String(value);
+    if (key !== 'url') return text;
+    try {
+      const url = new URL(text);
+      const path = url.pathname
+        .replace(/\/\d+\/\d+\/\d+\.vector\.pbf$/, '/{z}/{x}/{y}.vector.pbf')
+        .replace(/\/\d+\/\d+\/\d+\.glb$/, '/{z}/{x}/{y}.glb');
+      return `${url.origin}${path}`;
+    } catch (_) {
+      return text.replace(/access_token=[^&\s]+/g, 'access_token=<redacted>');
+    }
+  };
+  const collect = (obj, keys) => {
+    if (!obj) return;
+    keys.forEach(key => {
+      const value = obj[key];
+      if (value !== undefined && value !== null && value !== '') {
+        parts.push(`${key}=${normalizeValue(key, value)}`);
+      }
+    });
+  };
+  collect(err, ['message', 'name', 'status', 'statusCode', 'url', 'resource', 'sourceId']);
+  collect(event, ['sourceId', 'sourceLayer', 'tileID']);
+  return parts.join(' ') || String(err || event || 'unknown');
 }
 
 function escapeHTML(s) {
@@ -768,26 +817,43 @@ function showDetail(feature) {
   const viewList = document.getElementById('view-list');
   const viewDetail = document.getElementById('view-detail');
   viewDetail.innerHTML = renderDetail(feature);
+  viewDetail.setAttribute('tabindex', '-1');
   viewList.classList.add('hidden');
   viewDetail.classList.add('active');
   viewDetail.scrollTop = 0;
   if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.add('expanded');
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.add('expanded');
+    const dh = document.getElementById('drag-handle');
+    if (dh) dh.setAttribute('aria-expanded', 'true');
   }
-  document.getElementById('back-btn').addEventListener('click', hideDetail);
+  const backBtn = document.getElementById('back-btn');
+  backBtn.addEventListener('click', hideDetail);
   document.getElementById('center-btn').addEventListener('click', () => flyToFeature(feature));
+  // Mueve el foco al panel para que lectores de pantalla anuncien el cambio.
+  // setTimeout deja que el navegador termine la transición visual antes de mover el foco.
+  setTimeout(() => backBtn.focus(), 0);
 }
 
 function hideDetail() {
-  document.getElementById('view-list').classList.remove('hidden');
-  document.getElementById('view-detail').classList.remove('active');
-  document.getElementById('view-detail').innerHTML = '';
+  const viewList = document.getElementById('view-list');
+  const viewDetail = document.getElementById('view-detail');
+  viewList.classList.remove('hidden');
+  viewDetail.classList.remove('active');
+  viewDetail.innerHTML = '';
+  // Devuelve el foco al campo de búsqueda como ancla razonable de la lista.
+  const search = document.getElementById('search');
+  if (search) setTimeout(() => search.focus(), 0);
 }
 
 function setView(mode) {
   currentMode = mode;
-  document.getElementById('btn-2d').classList.toggle('active', mode === '2d');
-  document.getElementById('btn-3d').classList.toggle('active', mode === '3d');
+  const btn2 = document.getElementById('btn-2d');
+  const btn3 = document.getElementById('btn-3d');
+  btn2.classList.toggle('active', mode === '2d');
+  btn3.classList.toggle('active', mode === '3d');
+  btn2.setAttribute('aria-pressed', String(mode === '2d'));
+  btn3.setAttribute('aria-pressed', String(mode === '3d'));
   if (!map) return;
   if (mode === '3d') {
     setTowersVisible(true);
@@ -818,7 +884,11 @@ function initMap() {
   map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
   map.on('error', (e) => {
-    console.error('Mapbox error:', e && e.error || e);
+    const err = e && e.error || e;
+    const key = formatMapError(err, e);
+    if (seenMapErrors.has(key)) return;
+    seenMapErrors.add(key);
+    console.warn(`Mapbox warning: ${key}`);
   });
 
   map.on('load', () => {

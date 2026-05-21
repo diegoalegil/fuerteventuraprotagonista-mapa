@@ -95,7 +95,7 @@
         "province": "Las Palmas",
         "island": "Fuerteventura",
         "address": "Plaza del Ayuntamiento, 1, 35629 Tuineje",
-        "url": "https://www.aytotuineje.org/",
+        "url": "https://tuineje.es/",
         "phones": ["928 164 353"]
       }
     },
@@ -111,7 +111,7 @@
         "province": "Las Palmas",
         "island": "Fuerteventura",
         "address": "Calle Roberto Roldán, 11, 35637 Betancuria",
-        "url": "https://www.aytobetancuria.com/",
+        "url": "https://www.aytobetancuria.org/",
         "phones": ["928 878 092"]
       }
     },
@@ -127,8 +127,7 @@
         "province": "Las Palmas",
         "island": "Fuerteventura",
         "address": "Calle Lucha Canaria, 112, 35600 Puerto del Rosario",
-        "url": "https://reservabiosferafuerteventura.com/",
-        "emails": ["info@reservabiosferafuerteventura.com"]
+        "url": "https://fuerteventurabiosfera.org/"
       }
     },
     {
@@ -138,12 +137,13 @@
         "id": "fp-009",
         "name": "Asociación Amanay",
         "sector": "Asociación ciudadana",
-        "typology": "Asociación de mujeres",
+        "typology": "Asociación juvenil",
         "municipality": "Puerto del Rosario",
         "province": "Las Palmas",
         "island": "Fuerteventura",
         "address": "Puerto del Rosario",
-        "url": "https://amanay.org/"
+        "facebook": "https://www.facebook.com/Asociacionamanay/",
+        "instagram": "https://www.instagram.com/asociacionamanay/"
       }
     },
     {

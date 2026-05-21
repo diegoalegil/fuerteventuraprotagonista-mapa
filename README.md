@@ -15,9 +15,9 @@ Prototipo del mapa público para **Fuerteventura Protagonista** (Cabildo de Fuer
 - **Marcadores coloreados por sector** — 8 sectores provisionales (Administración pública, Asociación ciudadana, Cultura, Educación, Servicios sociales, Mayores, Mujer e igualdad, Medio ambiente).
 - **Filtros combinables** por sector y por municipio. Al filtrar por municipio, la cámara vuela hasta él.
 - **Vista 3D con terreno real** — DEM con exageración 2.5×, edificios sector-coloreados extruidos.
-- **Búsqueda fuzzy** sin acentos por nombre, municipio, provincia, dirección o sector.
+- **Búsqueda por substring** insensible a acentos y mayúsculas, contra nombre, municipio, provincia, dirección, sector y protagonista.
 - **Panel de detalle** lateral con dirección, teléfono, email, redes sociales y botón "Cómo llegar" a Google Maps.
-- **Responsive mobile** — bottom sheet deslizable en móviles.
+- **Responsive mobile** — el panel se convierte en bottom sheet expandible (tap en el handle para alternar).
 
 ## Tecnología
 
@@ -45,7 +45,7 @@ python3 -m http.server 8000
 
 Y abre `http://localhost:8000`.
 
-Para usar tu propio token de Mapbox, edita `index.html` y reemplaza la línea `mapboxgl.accessToken = '...'` por el tuyo. Para producción, restríngelo a la URL desde la que sirvas.
+> ⚠️ **Sobre el mapa en local:** el token público hardcodeado en `index.html` está restringido al dominio `diegoalegil.github.io` para evitar abuso de cuota. Por eso, al servir desde `http://localhost`, Mapbox devuelve **403** en las teselas vectoriales y se ven los marcadores sobre un fondo casi blanco. La consola muestra warnings (ya dedup-eados). Para arreglarlo en local: o bien añade `localhost` a los orígenes permitidos del token en el panel de Mapbox, o bien reemplaza el token por uno propio sin restricciones. En producción (GitHub Pages) no hay 403.
 
 ## Roadmap
 
