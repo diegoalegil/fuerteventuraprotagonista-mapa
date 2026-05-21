@@ -727,12 +727,26 @@ function escapeHTML(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Lista de parámetros de tracking que strippeamos al construir enlaces.
+// fbclid/gclid/mc_*: Facebook/Google Ads/Mailchimp. utm_*: UTM. ref/_ga: otros.
+const TRACKING_PARAMS = /^(fbclid|gclid|mc_(?:eid|cid)|utm_[a-z]+|ref|_ga|_gl|igshid|yclid|msclkid)$/i;
+
 function cleanUrl(u) {
   if (!u) return '';
   const s = String(u).trim();
   if (!s || s.toLowerCase() === 'null') return '';
   const m = s.match(/https?:\/\/[^\s"'<>,)]+/i);
-  return m ? m[0].replace(/[)"',.;:!]+$/, '') : '';
+  if (!m) return '';
+  let raw = m[0].replace(/[)"',.;:!]+$/, '');
+  try {
+    const parsed = new URL(raw);
+    const keep = [];
+    parsed.searchParams.forEach((v, k) => { if (!TRACKING_PARAMS.test(k)) keep.push([k, v]); });
+    parsed.search = '';
+    keep.forEach(([k, v]) => parsed.searchParams.append(k, v));
+    raw = parsed.toString().replace(/\?$/, '');
+  } catch (_) { /* URL inválida — devolver tal cual */ }
+  return raw;
 }
 
 function cleanPhone(s) {
@@ -998,17 +1012,18 @@ function initMap() {
       }
     });
 
-    map.on('click', 'clusters', async (e) => {
+    map.on('click', 'clusters', (e) => {
       const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
       if (!features.length) return;
       const feat = features[0];
-      const clusterId = feat.properties.cluster_id;
-      try {
-        const zoom = await map.getSource('entities').getClusterExpansionZoom(clusterId);
+      // Mapbox GL JS v3 sigue siendo callback-based aquí: el método devuelve
+      // `this` (la source) para chaining y entrega el zoom asíncronamente por
+      // el callback. Hacer await sobre el retorno daba GeoJSONSource ⇒ easeTo
+      // recibía zoom no finito y el cluster nunca expandía.
+      map.getSource('entities').getClusterExpansionZoom(feat.properties.cluster_id, (err, zoom) => {
+        if (err) { console.warn('Cluster expansion failed:', err); return; }
         map.easeTo({ center: feat.geometry.coordinates, zoom });
-      } catch (err) {
-        console.error('Cluster expansion failed:', err);
-      }
+      });
     });
 
     map.on('click', 'unclustered-point', (e) => {
