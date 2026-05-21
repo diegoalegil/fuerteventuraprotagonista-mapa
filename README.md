@@ -4,6 +4,8 @@ Prototipo del mapa público para **Fuerteventura Protagonista** (Cabildo de Fuer
 
 🔗 **Demo en vivo:** [diegoalegil.github.io/fuerteventuraprotagonista-mapa](https://diegoalegil.github.io/fuerteventuraprotagonista-mapa/)
 
+![Mapa de agentes de Fuerteventura Protagonista — prototipo con paleta marrón y datos placeholder](mapa-fuerteventura.png)
+
 > ⚠️ **Datos provisionales.** Los 18 puntos cargados ahora son ayuntamientos, el Cabildo y entidades públicas conocidas a modo de placeholder. Falta importar el listado completo del back-office cuando esté disponible.
 
 ## Qué hay aquí
