@@ -217,6 +217,17 @@
     outline-offset: 2px;
   }
 
+  /* Patrón estándar para texto solo accesible a lectores de pantalla. */
+  .visually-hidden {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0,0,0,0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   .drag-handle { display: none; }
 
   .detail-logo-block {
@@ -340,7 +351,9 @@
     </header>
     <div class="view-list" id="view-list">
       <div class="sidebar-search">
-        <input id="search" class="search-input" type="text" placeholder="Buscar por nombre, municipio, sector…" autocomplete="off" />
+        <label for="search" class="visually-hidden">Buscar entidades</label>
+        <input id="search" class="search-input" type="search" placeholder="Buscar por nombre, municipio, sector…" autocomplete="off" aria-describedby="search-help" />
+        <span id="search-help" class="visually-hidden">Filtra la lista por nombre, municipio, provincia, dirección, sector o protagonista.</span>
       </div>
       <div class="controls" role="group" aria-label="Vista del mapa">
         <button id="btn-2d" class="active" aria-pressed="true">2D</button>
@@ -349,13 +362,13 @@
       </div>
       <details class="sector-filter" open>
         <summary>Filtrar por municipio</summary>
-        <div class="sector-pills" id="municipio-list"></div>
+        <div class="sector-pills" id="municipio-list" role="group" aria-label="Filtrar por municipio"></div>
       </details>
       <details class="sector-filter">
         <summary>Filtrar por sector</summary>
-        <div class="sector-pills" id="sector-list"></div>
+        <div class="sector-pills" id="sector-list" role="group" aria-label="Filtrar por sector"></div>
       </details>
-      <div class="results-header"><strong id="results-count">—</strong> entidades</div>
+      <div class="results-header" aria-live="polite"><strong id="results-count">—</strong> entidades</div>
       <div class="entity-list" id="entity-list"></div>
     </div>
     <div class="view-detail" id="view-detail"></div>
@@ -556,6 +569,18 @@ async function load() {
   initSidebar();
   applyFilter();
   initMap();
+  openEntityFromUrl();
+}
+
+// Si la URL trae ?entity=<id> y existe en el dataset, abre el panel de
+// detalle con esa entidad. Espera al map.load para volar correctamente.
+function openEntityFromUrl() {
+  const id = new URLSearchParams(window.location.search).get('entity');
+  if (!id) return;
+  const feat = GEOJSON.features.find(f => f.properties.id === id);
+  if (!feat) return;
+  const open = () => { flyToFeature(feat); showDetail(feat, { skipUrl: true }); };
+  if (map && map.loaded()) open(); else if (map) map.once('load', open);
 }
 
 function initSidebar() {
@@ -859,7 +884,7 @@ function renderDetail(feature) {
   `;
 }
 
-function showDetail(feature) {
+function showDetail(feature, opts = {}) {
   const viewList = document.getElementById('view-list');
   const viewDetail = document.getElementById('view-detail');
   viewDetail.innerHTML = renderDetail(feature);
@@ -876,9 +901,16 @@ function showDetail(feature) {
   const backBtn = document.getElementById('back-btn');
   backBtn.addEventListener('click', hideDetail);
   document.getElementById('center-btn').addEventListener('click', () => flyToFeature(feature));
-  // Mueve el foco al panel para que lectores de pantalla anuncien el cambio.
-  // setTimeout deja que el navegador termine la transición visual antes de mover el foco.
   setTimeout(() => backBtn.focus(), 0);
+  // Refleja la entidad en la URL para que sea compartible (?entity=<id>).
+  if (!opts.skipUrl) {
+    const id = feature.properties.id;
+    if (id) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('entity', id);
+      history.replaceState(null, '', url.toString());
+    }
+  }
 }
 
 function hideDetail() {
@@ -890,6 +922,12 @@ function hideDetail() {
   // Devuelve el foco al campo de búsqueda como ancla razonable de la lista.
   const search = document.getElementById('search');
   if (search) setTimeout(() => search.focus(), 0);
+  // Limpia el param de la URL al volver a la lista.
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('entity')) {
+    url.searchParams.delete('entity');
+    history.replaceState(null, '', url.toString());
+  }
 }
 
 function setView(mode) {
