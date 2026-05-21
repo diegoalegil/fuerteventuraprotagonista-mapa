@@ -1,0 +1,279 @@
+{
+  "type": "FeatureCollection",
+  "_note": "Datos provisionales. Pendiente importar el listado oficial del back-office de Fuerteventura Protagonista.",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8627, 28.4986] },
+      "properties": {
+        "id": "fp-001",
+        "name": "Cabildo de Fuerteventura",
+        "sector": "Administración pública",
+        "typology": "Cabildo insular",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle 1º de Mayo, 39, 35600 Puerto del Rosario",
+        "url": "https://www.cabildofuer.es/",
+        "phones": ["928 862 300"],
+        "emails": ["info@cabildofuer.es"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8636, 28.4954] },
+      "properties": {
+        "id": "fp-002",
+        "name": "Ayuntamiento de Puerto del Rosario",
+        "sector": "Administración pública",
+        "typology": "Ayuntamiento",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle Fernández Castañeyra, 2, 35600 Puerto del Rosario",
+        "url": "https://www.puertodelrosario.org/",
+        "phones": ["928 850 110"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.1056, 28.3537] },
+      "properties": {
+        "id": "fp-003",
+        "name": "Ayuntamiento de Pájara",
+        "sector": "Administración pública",
+        "typology": "Ayuntamiento",
+        "municipality": "Pájara",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle Nuestra Señora de Regla, 3, 35628 Pájara",
+        "url": "https://www.pajara.es/",
+        "phones": ["928 161 704"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.0148, 28.4211] },
+      "properties": {
+        "id": "fp-004",
+        "name": "Ayuntamiento de Antigua",
+        "sector": "Administración pública",
+        "typology": "Ayuntamiento",
+        "municipality": "Antigua",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Plaza del Ayuntamiento, s/n, 35630 Antigua",
+        "url": "https://www.ayto-antigua.es/",
+        "phones": ["928 878 004"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.9282, 28.6112] },
+      "properties": {
+        "id": "fp-005",
+        "name": "Ayuntamiento de La Oliva",
+        "sector": "Administración pública",
+        "typology": "Ayuntamiento",
+        "municipality": "La Oliva",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle Emilio Castellot, 2, 35640 La Oliva",
+        "url": "https://www.laoliva.es/",
+        "phones": ["928 861 904"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.0467, 28.3242] },
+      "properties": {
+        "id": "fp-006",
+        "name": "Ayuntamiento de Tuineje",
+        "sector": "Administración pública",
+        "typology": "Ayuntamiento",
+        "municipality": "Tuineje",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Plaza del Ayuntamiento, 1, 35629 Tuineje",
+        "url": "https://www.aytotuineje.org/",
+        "phones": ["928 164 353"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.0656, 28.4280] },
+      "properties": {
+        "id": "fp-007",
+        "name": "Ayuntamiento de Betancuria",
+        "sector": "Administración pública",
+        "typology": "Ayuntamiento",
+        "municipality": "Betancuria",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle Roberto Roldán, 11, 35637 Betancuria",
+        "url": "https://www.aytobetancuria.com/",
+        "phones": ["928 878 092"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8590, 28.5012] },
+      "properties": {
+        "id": "fp-008",
+        "name": "Reserva de la Biosfera de Fuerteventura",
+        "sector": "Medio ambiente",
+        "typology": "Organismo público",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle Lucha Canaria, 112, 35600 Puerto del Rosario",
+        "url": "https://reservabiosferafuerteventura.com/",
+        "emails": ["info@reservabiosferafuerteventura.com"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8674, 28.4940] },
+      "properties": {
+        "id": "fp-009",
+        "name": "Asociación Amanay",
+        "sector": "Asociación ciudadana",
+        "typology": "Asociación de mujeres",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Puerto del Rosario",
+        "url": "https://amanay.org/"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.1041, 28.3552] },
+      "properties": {
+        "id": "fp-010",
+        "name": "Centro de Mayores de Pájara",
+        "sector": "Mayores",
+        "typology": "Centro de día",
+        "municipality": "Pájara",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Pájara casco"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8612, 28.4969] },
+      "properties": {
+        "id": "fp-011",
+        "name": "Biblioteca Insular Lola Hierro",
+        "sector": "Cultura y patrimonio",
+        "typology": "Biblioteca pública",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle Ramiro de Maeztu, 2, 35600 Puerto del Rosario"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8649, 28.4977] },
+      "properties": {
+        "id": "fp-012",
+        "name": "Cruz Roja Fuerteventura",
+        "sector": "Servicios sociales",
+        "typology": "ONG",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Calle Doctor Mena Castillo, 8, 35600 Puerto del Rosario",
+        "url": "https://www.cruzroja.es/",
+        "phones": ["928 851 376"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8595, 28.4998] },
+      "properties": {
+        "id": "fp-013",
+        "name": "Universidad Popular de Fuerteventura",
+        "sector": "Educación",
+        "typology": "Formación adultos",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Puerto del Rosario"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8632, 28.4961] },
+      "properties": {
+        "id": "fp-014",
+        "name": "Asociación de Mujeres Mafasca",
+        "sector": "Mujer e igualdad",
+        "typology": "Asociación",
+        "municipality": "Puerto del Rosario",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Puerto del Rosario"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-13.8688, 28.7430] },
+      "properties": {
+        "id": "fp-015",
+        "name": "Asociación Vecinal de Corralejo",
+        "sector": "Asociación ciudadana",
+        "typology": "Asociación vecinal",
+        "municipality": "La Oliva",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Corralejo, 35660 La Oliva"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.3548, 28.0531] },
+      "properties": {
+        "id": "fp-016",
+        "name": "Centro Cultural de Morro Jable",
+        "sector": "Cultura y patrimonio",
+        "typology": "Centro cultural",
+        "municipality": "Pájara",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Morro Jable, 35625 Pájara"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.0220, 28.4209] },
+      "properties": {
+        "id": "fp-017",
+        "name": "Museo del Queso Majorero",
+        "sector": "Cultura y patrimonio",
+        "typology": "Museo",
+        "municipality": "Antigua",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Carretera de Antigua, s/n, 35630 Antigua",
+        "phones": ["928 878 041"]
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": { "type": "Point", "coordinates": [-14.0660, 28.4258] },
+      "properties": {
+        "id": "fp-018",
+        "name": "Casa Santa María de Betancuria",
+        "sector": "Cultura y patrimonio",
+        "typology": "Centro etnográfico",
+        "municipality": "Betancuria",
+        "province": "Las Palmas",
+        "island": "Fuerteventura",
+        "address": "Plaza Santa María, s/n, 35637 Betancuria"
+      }
+    }
+  ]
+}

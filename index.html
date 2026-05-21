@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Fuerteventura Protagonista — Mapa de agentes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.js"></script>
+<script src="https://unpkg.com/@turf/turf@7.3.5/turf.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: 'Montserrat', sans-serif; color: #323232; -webkit-font-smoothing: antialiased; }
+  #container { display: flex; height: 100vh; height: 100dvh; }
+  #sidebar {
+    width: 380px;
+    background: #FFFFFF;
+    border-right: 1px solid #E8E8E8;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #map { flex: 1; position: relative; }
+
+  .sidebar-header { padding: 22px 24px 14px; }
+  .sidebar-header h1 {
+    font-family: 'Libre Baskerville', Georgia, serif;
+    font-size: 20px; font-weight: 700; color: #534a44;
+    letter-spacing: -0.3px; line-height: 1.15;
+  }
+  .sidebar-header p { font-size: 12px; color: #888; margin-top: 4px; letter-spacing: 0.4px; text-transform: uppercase; font-weight: 600; }
+
+  .sidebar-search {
+    padding: 4px 24px 16px;
+    background: #FFF;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  .search-input {
+    width: 100%; padding: 11px 14px 11px 38px;
+    border: 1px solid #E0E0E0; border-radius: 8px;
+    font-family: inherit; font-size: 13px;
+    background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='M11 11l3 3'/%3E%3C/svg%3E") no-repeat 12px center;
+    background-size: 16px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .search-input:focus { outline: none; border-color: #534a44; box-shadow: 0 0 0 3px rgba(83,74,68,0.1); }
+
+  .controls {
+    display: flex; gap: 6px;
+    padding: 12px 24px;
+    background: #FAFAFA; border-bottom: 1px solid #F0F0F0;
+  }
+  .controls button {
+    flex: 1; padding: 8px; font-family: inherit; font-size: 12px; font-weight: 600;
+    background: #FFF; border: 1px solid #E0E0E0; border-radius: 6px;
+    cursor: pointer; color: #555; transition: all 0.15s;
+  }
+  .controls button:hover { border-color: #534a44; color: #534a44; }
+  .controls button.active {
+    background: #534a44; color: #FFF; border-color: #534a44;
+    box-shadow: 0 1px 3px rgba(83,74,68,0.3);
+  }
+
+  details.sector-filter {
+    padding: 12px 24px;
+    border-bottom: 1px solid #F0F0F0;
+    background: #FAFAFA;
+  }
+  details.sector-filter summary {
+    cursor: pointer; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.8px; color: #666;
+    user-select: none; list-style: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  details.sector-filter summary::-webkit-details-marker { display: none; }
+  details.sector-filter summary::before { content: '▸'; transition: transform 0.2s; display: inline-block; font-size: 10px; }
+  details.sector-filter[open] summary::before { transform: rotate(90deg); }
+
+  .sector-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .sector-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 100px;
+    font-size: 11px; font-weight: 600; color: #444;
+    background: #FFF; border: 1px solid #E0E0E0;
+    cursor: pointer; transition: all 0.15s;
+    user-select: none;
+  }
+  .sector-pill:hover { border-color: var(--c, #534a44); }
+  .sector-pill.selected {
+    border-color: var(--c, #534a44);
+    background: var(--c, #534a44);
+    color: #FFF;
+  }
+  .sector-pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--c, #534a44);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.1);
+  }
+  .sector-pill.selected .dot { background: #FFF; box-shadow: none; }
+  .sector-pill .count { font-size: 10px; opacity: 0.75; margin-left: 2px; }
+
+  .results-header {
+    padding: 12px 24px 8px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.9px;
+    color: #888; font-weight: 700;
+    background: #FFF;
+  }
+  .results-header strong { color: #534a44; font-weight: 700; }
+
+  .entity-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 16px 20px;
+  }
+  .entity-card {
+    display: flex; align-items: center;
+    padding: 10px 12px;
+    background: #FFF;
+    border: 1px solid #ECECEC; border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    color: inherit;
+  }
+  .entity-card:hover {
+    border-color: #534a44;
+    box-shadow: 0 3px 12px rgba(83,74,68,0.1);
+    transform: translateY(-1px);
+  }
+  .entity-card .sector-bar {
+    width: 4px; align-self: stretch; border-radius: 2px;
+    background: var(--c, #999);
+    flex-shrink: 0;
+  }
+  .entity-card .card-logo {
+    width: 44px; height: 44px; flex-shrink: 0;
+    border-radius: 8px; overflow: hidden;
+    background: var(--c, #999);
+    display: flex; align-items: center; justify-content: center;
+    color: #FFF; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  .entity-card .card-logo img {
+    width: 100%; height: 100%; object-fit: contain;
+    background: #FFF;
+  }
+  .entity-card .card-body { flex: 1; min-width: 0; }
+  .entity-card .name {
+    font-size: 13px; font-weight: 600; color: #222;
+    margin-bottom: 4px; line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .entity-card .location {
+    font-size: 11.5px; color: var(--c, #999);
+    font-weight: 600; line-height: 1.3;
+  }
+  .entity-card .sector-label {
+    font-size: 9.5px; color: #888;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    margin-top: 4px;
+  }
+
+  .empty {
+    text-align: center; color: #999; padding: 36px 20px;
+    font-size: 13px; font-style: italic;
+  }
+
+  .mapboxgl-popup-content {
+    padding: 16px 18px; border-radius: 10px;
+    font-family: 'Montserrat', sans-serif;
+    max-width: 320px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  }
+  .mapboxgl-popup-content h3 {
+    font-family: 'Libre Baskerville', Georgia, serif;
+    font-size: 15px; color: #534a44;
+    margin-bottom: 8px; line-height: 1.3;
+  }
+  .mapboxgl-popup-content .pop-pill {
+    display: inline-block; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.6px; padding: 3px 9px; border-radius: 100px;
+    color: #FFF; font-weight: 700; margin-bottom: 10px;
+  }
+  .mapboxgl-popup-content .pop-meta {
+    font-size: 12px; color: #555; margin-bottom: 6px; line-height: 1.4;
+  }
+  .mapboxgl-popup-content .pop-meta strong { color: #333; }
+  .mapboxgl-popup-content .pop-links {
+    display: flex; gap: 12px; margin-top: 12px;
+    flex-wrap: wrap; font-size: 12px;
+  }
+  .mapboxgl-popup-content .pop-links a {
+    color: #A87F4E; text-decoration: none; font-weight: 600;
+  }
+  .mapboxgl-popup-content .pop-links a:hover { text-decoration: underline; }
+
+  .demo-banner {
+    position: absolute; bottom: 12px; left: 12px;
+    background: rgba(13, 78, 71, 0.95); color: #FFF;
+    padding: 8px 14px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px;
+    z-index: 1; box-shadow: 0 2px 10px rgba(0,0,0,.2);
+    pointer-events: none;
+  }
+  :focus-visible {
+    outline: 2px solid #534a44;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .sector-pill:focus-visible, .entity-card:focus-visible, .controls button:focus-visible, .back-button:focus-visible {
+    outline-offset: 2px;
+  }
+
+  .drag-handle { display: none; }
+
+  .detail-logo-block {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 14px;
+  }
+  .detail-logo {
+    width: 64px; height: 64px;
+    border-radius: 12px; overflow: hidden;
+    background: var(--c, #999);
+    display: flex; align-items: center; justify-content: center;
+    color: #FFF; font-weight: 700; font-size: 22px;
+    flex-shrink: 0;
+  }
+  .detail-logo img { width: 100%; height: 100%; object-fit: contain; background: #FFF; }
+  .detail-logo-block .detail-name { margin: 0; flex: 1; }
+
+  @media (max-width: 768px) {
+    #container { flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; position: relative; }
+    #map { flex: 1; width: 100%; height: 100vh; height: 100dvh; }
+    #sidebar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      width: 100%;
+      height: 72vh;
+      border-right: 0;
+      border-top: 1px solid #E8E8E8;
+      border-radius: 18px 18px 0 0;
+      box-shadow: 0 -8px 28px rgba(0,0,0,0.2);
+      transform: translateY(calc(100% - 138px));
+      transition: transform 0.32s cubic-bezier(.4,.0,.2,1);
+      z-index: 10;
+    }
+    #sidebar.expanded { transform: translateY(0); }
+    .drag-handle {
+      display: block;
+      position: relative;
+      height: 22px;
+      cursor: pointer;
+      flex-shrink: 0;
+      background: transparent;
+      border: 0;
+      width: 100%;
+    }
+    .drag-handle::before {
+      content: '';
+      position: absolute;
+      top: 8px; left: 50%; transform: translateX(-50%);
+      width: 44px; height: 4px;
+      background: #CCC; border-radius: 2px;
+    }
+    .sidebar-header { padding-top: 4px; }
+    .demo-banner { bottom: 8px; left: 8px; font-size: 10px; padding: 6px 10px; }
+  }
+
+  .view-list { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+  .view-list.hidden { display: none; }
+  .view-detail { display: none; flex-direction: column; flex: 1; overflow-y: auto; }
+  .view-detail.active { display: flex; }
+
+  .back-button {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 24px;
+    background: #FAFAFA; border: 0; border-bottom: 1px solid #F0F0F0;
+    cursor: pointer; width: 100%;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    color: #555; transition: all 0.15s;
+    text-align: left;
+  }
+  .back-button:hover { background: #F2F2F2; color: #534a44; }
+  .back-button .arrow { font-size: 14px; line-height: 1; }
+
+  .detail-content { padding: 20px 24px 32px; }
+  .detail-name { font-family: 'Libre Baskerville', Georgia, serif; font-size: 19px; font-weight: 700; color: #534a44; line-height: 1.3; margin-bottom: 10px; }
+  .detail-pill {
+    display: inline-block; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.6px; padding: 4px 10px; border-radius: 100px;
+    color: #FFF; font-weight: 700; margin-bottom: 18px;
+  }
+  .detail-section { margin-bottom: 16px; }
+  .detail-section-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: #888; font-weight: 700; margin-bottom: 4px;
+  }
+  .detail-section-value {
+    font-size: 13px; color: #333; line-height: 1.5;
+  }
+  .detail-section-value.loading { color: #BBB; font-style: italic; }
+  .detail-section-value.empty { color: #BBB; font-style: italic; }
+
+  .detail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; padding-top: 18px; border-top: 1px solid #F0F0F0; }
+  .detail-action {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 14px; border-radius: 8px;
+    text-decoration: none; font-family: inherit; font-size: 13px; font-weight: 600;
+    border: 1px solid #E0E0E0; background: #FFF; color: #444;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .detail-action:hover { border-color: #534a44; color: #534a44; background: #F5EEDA; }
+  .detail-action.primary { background: #534a44; color: #FFF; border-color: #534a44; }
+  .detail-action.primary:hover { background: #3d3631; color: #FFF; }
+
+  .detail-links-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .detail-link-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 100px;
+    background: #F2F2F2; color: #444; text-decoration: none;
+    font-size: 11px; font-weight: 600;
+    transition: all 0.15s;
+  }
+  .detail-link-chip:hover { background: #A87F4E; color: #FFF; }
+</style>
+</head>
+<body>
+<div id="container">
+  <aside id="sidebar">
+    <button type="button" class="drag-handle" id="drag-handle" aria-label="Mostrar u ocultar panel"></button>
+    <header class="sidebar-header">
+      <h1>Fuerteventura Protagonista</h1>
+      <p>Mapa de agentes</p>
+    </header>
+    <div class="view-list" id="view-list">
+      <div class="sidebar-search">
+        <input id="search" class="search-input" type="text" placeholder="Buscar por nombre, municipio, sector…" autocomplete="off" />
+      </div>
+      <div class="controls">
+        <button id="btn-2d" class="active">2D</button>
+        <button id="btn-3d">3D</button>
+        <button id="btn-fit">Centrar</button>
+      </div>
+      <details class="sector-filter" open>
+        <summary>Filtrar por municipio</summary>
+        <div class="sector-pills" id="municipio-list"></div>
+      </details>
+      <details class="sector-filter">
+        <summary>Filtrar por sector</summary>
+        <div class="sector-pills" id="sector-list"></div>
+      </details>
+      <div class="results-header"><strong id="results-count">—</strong> entidades</div>
+      <div class="entity-list" id="entity-list"></div>
+    </div>
+    <div class="view-detail" id="view-detail"></div>
+  </aside>
+  <div id="map"></div>
+  <div class="demo-banner">PROTOTIPO · datos provisionales</div>
+</div>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiY2FuYXJpYXMtY29udml2ZSIsImEiOiJjbXBlcHlkcHcwN25pMnBxdjJmemRzY3JoIn0.o0bCnhVjEmdYbfTAbrkKWA';
+
+const STYLE_URL = 'mapbox://styles/mapbox/light-v11';
+const GEOJSON_URL = 'entities.geojson';
+const FUERTEVENTURA_BOUNDS = [[-14.55, 28.02], [-13.78, 28.78]];
+
+const MUNICIPIO_BOUNDS = {
+  'La Oliva':           [[-14.05, 28.55], [-13.78, 28.78]],
+  'Puerto del Rosario': [[-14.05, 28.40], [-13.80, 28.56]],
+  'Antigua':            [[-14.15, 28.34], [-13.92, 28.48]],
+  'Betancuria':         [[-14.13, 28.36], [-13.99, 28.46]],
+  'Tuineje':            [[-14.20, 28.18], [-13.90, 28.35]],
+  'Pájara':             [[-14.55, 28.02], [-14.05, 28.30]]
+};
+
+function flyToMunicipios(municipios) {
+  if (!map) return;
+  const opts = {
+    padding: 60,
+    duration: 1500,
+    pitch: currentMode === '3d' ? 60 : 0,
+    bearing: currentMode === '3d' ? -17 : 0
+  };
+  if (!municipios || municipios.size === 0) {
+    map.fitBounds(FUERTEVENTURA_BOUNDS, { ...opts, padding: 40 });
+    return;
+  }
+  let sw = [180, 90], ne = [-180, -90];
+  municipios.forEach(name => {
+    const b = MUNICIPIO_BOUNDS[name];
+    if (!b) return;
+    sw[0] = Math.min(sw[0], b[0][0]);
+    sw[1] = Math.min(sw[1], b[0][1]);
+    ne[0] = Math.max(ne[0], b[1][0]);
+    ne[1] = Math.max(ne[1], b[1][1]);
+  });
+  if (sw[0] < 180) map.fitBounds([sw, ne], opts);
+}
+
+const SECTOR_COLORS = {
+  'Administración pública': '#534a44',
+  'Asociación ciudadana': '#A87F4E',
+  'Cultura y patrimonio': '#8E5A3C',
+  'Educación': '#6B7042',
+  'Servicios sociales': '#B47545',
+  'Mayores': '#7C5C42',
+  'Mujer e igualdad': '#A05E5E',
+  'Medio ambiente': '#4F5A3E',
+  'Sin sector': '#999999'
+};
+
+function normalize(s) {
+  return (s || '').toString().toLowerCase()
+    .normalize('NFC').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+const LOGO_BASE = 'https://api.fuerteventuraprotagonista.com/rest/uploaded/entities/';
+const STOPWORDS = new Set(['de','del','la','las','el','los','y','en','a','al','con','para','por','un','una']);
+
+function getInitials(name) {
+  const words = (name || '').split(/\s+/).filter(w => w && /[A-Za-zÀ-ÿ]/.test(w[0]) && !STOPWORDS.has(w.toLowerCase()));
+  if (words.length === 0) return '?';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
+}
+
+function buildLogoHTML(p) {
+  const initials = getInitials(p.name);
+  if (p.logo) {
+    return `<img src="${LOGO_BASE}${escapeHTML(p.logo)}.png" loading="lazy" alt="" onerror="this.parentNode.classList.add('no-logo');this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');" /><span class="logo-fallback" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials}</span>`;
+  }
+  return `<span>${initials}</span>`;
+}
+
+function hashId(id) {
+  let h = 0;
+  const s = id || '';
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+function buildingFeature(f) {
+  const [lng, lat] = f.geometry.coordinates;
+  const sector = f.properties.sector;
+  const color = SECTOR_COLORS[sector] || '#999';
+  const h = hashId(f.properties.id);
+  const widthM = 26 + (h % 16);
+  const lengthM = 36 + ((h >> 4) % 24);
+  const rotation = (h >> 8) % 90;
+  const height = 45 + ((h >> 12) % 60);
+  const widthDeg = widthM / (111000 * Math.cos(lat * Math.PI / 180));
+  const lengthDeg = lengthM / 111000;
+  const rect = turf.bboxPolygon([
+    lng - widthDeg / 2, lat - lengthDeg / 2,
+    lng + widthDeg / 2, lat + lengthDeg / 2
+  ]);
+  const rotated = turf.transformRotate(rect, rotation, { pivot: [lng, lat] });
+  rotated.properties = {
+    id: f.properties.id,
+    sector,
+    color,
+    height
+  };
+  return rotated;
+}
+
+let GEOJSON = null;
+let map = null;
+let activeFilters = new Set();
+let activeMunicipios = new Set();
+let searchQuery = '';
+let currentMode = '2d';
+let zonesData = null;
+
+async function load() {
+  try {
+    const resp = await fetch(GEOJSON_URL);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    GEOJSON = await resp.json();
+  } catch (err) {
+    console.error('Error cargando entities.geojson:', err);
+    const list = document.getElementById('entity-list');
+    if (list) list.innerHTML = '<div class="empty">No se pudieron cargar las entidades. Recarga la página o revisa tu conexión.</div>';
+    const count = document.getElementById('results-count');
+    if (count) count.textContent = '!';
+    return;
+  }
+
+  GEOJSON.features.forEach(f => {
+    let s = (f.properties.sector || '').trim();
+    f.properties.sector = s || 'Sin sector';
+  });
+
+  zonesData = {
+    type: 'FeatureCollection',
+    features: GEOJSON.features.map(f => buildingFeature(f))
+  };
+
+  initSidebar();
+  applyFilter();
+  initMap();
+}
+
+function initSidebar() {
+  const sectorCounts = {};
+  const municipioCounts = {};
+  GEOJSON.features.forEach(f => {
+    sectorCounts[f.properties.sector] = (sectorCounts[f.properties.sector] || 0) + 1;
+    const mun = f.properties.municipality;
+    if (mun) municipioCounts[mun] = (municipioCounts[mun] || 0) + 1;
+  });
+
+  const municipioList = document.getElementById('municipio-list');
+  Object.entries(municipioCounts).sort((a, b) => b[1] - a[1]).forEach(([municipio, n]) => {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'sector-pill';
+    pill.setAttribute('aria-pressed', 'false');
+    pill.style.setProperty('--c', '#534a44');
+    pill.innerHTML = `<span>${escapeHTML(municipio)}</span><span class="count">${n}</span>`;
+    pill.dataset.municipio = municipio;
+    pill.addEventListener('click', () => {
+      const selected = !activeMunicipios.has(municipio);
+      if (selected) activeMunicipios.add(municipio); else activeMunicipios.delete(municipio);
+      pill.classList.toggle('selected', selected);
+      pill.setAttribute('aria-pressed', String(selected));
+      applyFilter();
+      flyToMunicipios(activeMunicipios);
+    });
+    municipioList.appendChild(pill);
+  });
+
+  const list = document.getElementById('sector-list');
+  list.innerHTML = '';
+  Object.entries(sectorCounts).sort((a, b) => b[1] - a[1]).forEach(([sector, n]) => {
+    const pill = document.createElement('button');
+    pill.type = 'button';
+    pill.className = 'sector-pill';
+    pill.setAttribute('aria-pressed', 'false');
+    pill.style.setProperty('--c', SECTOR_COLORS[sector] || '#999');
+    pill.innerHTML = `<span class="dot"></span><span>${escapeHTML(sector)}</span><span class="count">${n}</span>`;
+    pill.dataset.sector = sector;
+    pill.addEventListener('click', () => {
+      const selected = !activeFilters.has(sector);
+      if (selected) activeFilters.add(sector); else activeFilters.delete(sector);
+      pill.classList.toggle('selected', selected);
+      pill.setAttribute('aria-pressed', String(selected));
+      applyFilter();
+    });
+    list.appendChild(pill);
+  });
+
+  document.getElementById('search').addEventListener('input', (e) => {
+    searchQuery = normalize(e.target.value);
+    applyFilter();
+  });
+
+  const dragHandle = document.getElementById('drag-handle');
+  if (dragHandle) {
+    dragHandle.addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('expanded');
+    });
+  }
+
+  document.getElementById('btn-2d').addEventListener('click', () => setView('2d'));
+  document.getElementById('btn-3d').addEventListener('click', () => setView('3d'));
+  document.getElementById('btn-fit').addEventListener('click', () => {
+    document.getElementById('btn-2d').classList.add('active');
+    document.getElementById('btn-3d').classList.remove('active');
+    currentMode = '2d';
+    setTowersVisible(false);
+    map.fitBounds(FUERTEVENTURA_BOUNDS, { padding: 40, pitch: 0, bearing: 0, duration: 1200 });
+  });
+}
+
+function matchesSearch(props) {
+  if (!searchQuery) return true;
+  // Búsqueda solo en campos de identidad: nombre, ubicación, sector, protagonista.
+  // No incluye typology porque su texto contiene ejemplos hardcoded ("Cáritas, Cruz Roja...")
+  // que generan falsos positivos masivos. Para filtrar por tipología, usar el panel de filtros explícito.
+  const fields = [
+    props.name, props.municipality, props.province, props.address,
+    props.sector, props.protagonist
+  ].map(normalize);
+  return fields.some(f => f.includes(searchQuery));
+}
+
+function getFilteredFeatures() {
+  return GEOJSON.features.filter(f =>
+    (activeFilters.size === 0 || activeFilters.has(f.properties.sector)) &&
+    (activeMunicipios.size === 0 || activeMunicipios.has(f.properties.municipality)) &&
+    matchesSearch(f.properties)
+  );
+}
+
+function applyFilter() {
+  const filtered = getFilteredFeatures();
+  if (map && map.getSource('entities')) {
+    map.getSource('entities').setData({
+      type: 'FeatureCollection',
+      features: filtered
+    });
+    if (map.getSource('zones')) {
+      const filteredIds = new Set(filtered.map(f => f.properties.id));
+      map.getSource('zones').setData({
+        type: 'FeatureCollection',
+        features: zonesData.features.filter(z => filteredIds.has(z.properties.id))
+      });
+    }
+  }
+  document.getElementById('results-count').textContent = filtered.length;
+  renderEntityList(filtered);
+}
+
+function renderEntityList(features) {
+  const list = document.getElementById('entity-list');
+  if (features.length === 0) {
+    list.innerHTML = '<div class="empty">No se encontraron entidades con esos filtros.</div>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  const sorted = features.slice().sort((a, b) => a.properties.name.localeCompare(b.properties.name, 'es'));
+  sorted.slice(0, 120).forEach(f => {
+    const p = f.properties;
+    const color = SECTOR_COLORS[p.sector] || '#999';
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'entity-card';
+    card.setAttribute('aria-label', `${p.name}, ${p.sector}`);
+    card.style.setProperty('--c', color);
+    const loc = [p.municipality, p.province].filter(Boolean).join(', ') || p.island || p.sector;
+    card.innerHTML = `
+      <div class="sector-bar"></div>
+      <div class="card-logo">${buildLogoHTML(p)}</div>
+      <div class="card-body">
+        <div class="name">${escapeHTML(p.name)}</div>
+        <div class="location">${escapeHTML(loc)}</div>
+        ${(p.municipality || p.island) ? `<div class="sector-label">${escapeHTML(p.sector)}</div>` : ''}
+      </div>
+    `;
+    card.addEventListener('click', () => {
+      flyToFeature(f);
+      showDetail(f);
+    });
+    frag.appendChild(card);
+  });
+  if (sorted.length > 120) {
+    const note = document.createElement('div');
+    note.className = 'empty';
+    note.textContent = `+${sorted.length - 120} entidades más · afina la búsqueda`;
+    frag.appendChild(note);
+  }
+  list.innerHTML = '';
+  list.appendChild(frag);
+}
+
+function flyToFeature(f) {
+  if (!map) return;
+  const coords = f.geometry.coordinates;
+  const pitchKeep = currentMode === '3d' ? 65 : 0;
+  const bearingKeep = currentMode === '3d' ? -17 : 0;
+  map.flyTo({ center: coords, zoom: 16, pitch: pitchKeep, bearing: bearingKeep, duration: 1500 });
+}
+
+function escapeHTML(s) {
+  return (s || '').toString()
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function cleanUrl(u) {
+  if (!u) return '';
+  const s = String(u).trim();
+  if (!s || s.toLowerCase() === 'null') return '';
+  const m = s.match(/https?:\/\/[^\s"'<>,)]+/i);
+  return m ? m[0].replace(/[)"',.;:!]+$/, '') : '';
+}
+
+function cleanPhone(s) {
+  if (!s) return '';
+  let v = String(s).trim().replace(/^(tel|telefono|tlf|telef)[:.\s]+/i, '');
+  v = v.replace(/[^\d+\-()\s]/g, '');
+  v = v.replace(/\(\s*\)/g, '');
+  v = v.replace(/\s+/g, ' ').trim();
+  const digits = v.replace(/\D/g, '');
+  return digits.length >= 7 ? v : '';
+}
+
+function cleanEmail(s) {
+  if (!s) return '';
+  const v = String(s).trim().replace(/^mailto:/i, '').toLowerCase();
+  return /^[\w.+-]+@[\w.-]+\.\w+$/.test(v) ? v : '';
+}
+
+function buildLinkChip(href, label) {
+  const clean = cleanUrl(href);
+  if (!clean) return '';
+  return `<a class="detail-link-chip" href="${escapeHTML(clean)}" target="_blank" rel="noopener">${label}</a>`;
+}
+
+function renderDetail(feature) {
+  const p = feature.properties;
+  const color = SECTOR_COLORS[p.sector] || '#999';
+  const links = [
+    buildLinkChip(p.url, 'Web'),
+    buildLinkChip(p.facebook, 'Facebook'),
+    buildLinkChip(p.instagram, 'Instagram'),
+    buildLinkChip(p.twitter, 'Twitter')
+  ].filter(Boolean).join('');
+
+  // Address may come as a string or as a list — normalize
+  let phones = p.phones || [];
+  let emails = p.emails || [];
+  if (typeof phones === 'string') { try { phones = JSON.parse(phones); } catch(e) { phones = phones ? [phones] : []; } }
+  if (typeof emails === 'string') { try { emails = JSON.parse(emails); } catch(e) { emails = emails ? [emails] : []; } }
+
+  const locationParts = [p.municipality, p.province].filter(Boolean).join(', ');
+  const fullAddress = p.address || locationParts || '';
+
+  const addressBlock = fullAddress
+    ? `<div class="detail-section"><div class="detail-section-label">Dirección</div><div class="detail-section-value">${escapeHTML(fullAddress)}</div></div>`
+    : (locationParts ? `<div class="detail-section"><div class="detail-section-label">Ubicación</div><div class="detail-section-value">${escapeHTML(locationParts)}</div></div>` : '');
+
+  const cleanPhones = phones.map(cleanPhone).filter(Boolean);
+  const cleanEmails = emails.map(cleanEmail).filter(Boolean);
+  let phonesBlock = '';
+  if (cleanPhones.length) {
+    phonesBlock = `<div class="detail-section"><div class="detail-section-label">Teléfono</div><div class="detail-section-value">${cleanPhones.map(x => `<a href="tel:${escapeHTML(x.replace(/\s/g,''))}" style="color:#534a44;text-decoration:none;font-weight:600;">${escapeHTML(x)}</a>`).join('<br>')}</div></div>`;
+  }
+  let emailsBlock = '';
+  if (cleanEmails.length) {
+    emailsBlock = `<div class="detail-section"><div class="detail-section-label">Email</div><div class="detail-section-value">${cleanEmails.map(x => `<a href="mailto:${escapeHTML(x)}" style="color:#A87F4E;text-decoration:none;font-weight:600;">${escapeHTML(x)}</a>`).join('<br>')}</div></div>`;
+  }
+
+  return `
+    <button class="back-button" id="back-btn"><span class="arrow">←</span> Volver al listado</button>
+    <div class="detail-content">
+      <div class="detail-logo-block">
+        <div class="detail-logo" style="--c:${color}">${buildLogoHTML(p)}</div>
+        <h2 class="detail-name">${escapeHTML(p.name)}</h2>
+      </div>
+      <div class="detail-pill" style="background:${color}">${escapeHTML(p.sector)}</div>
+      ${p.typology ? `<div class="detail-section"><div class="detail-section-label">Tipología</div><div class="detail-section-value">${escapeHTML(p.typology)}</div></div>` : ''}
+      ${p.protagonist ? `<div class="detail-section"><div class="detail-section-label">Protagonista</div><div class="detail-section-value">${escapeHTML(p.protagonist)}</div></div>` : ''}
+      ${addressBlock}
+      ${phonesBlock}
+      ${emailsBlock}
+      ${links ? `<div class="detail-section"><div class="detail-section-label">Enlaces</div><div class="detail-links-row">${links}</div></div>` : ''}
+      <div class="detail-actions">
+        <button class="detail-action primary" id="center-btn">Centrar en el mapa</button>
+        <a class="detail-action" id="gmaps-btn" href="https://www.google.com/maps/dir/?api=1&destination=${feature.geometry.coordinates[1]},${feature.geometry.coordinates[0]}" target="_blank" rel="noopener">Cómo llegar (Google Maps)</a>
+      </div>
+    </div>
+  `;
+}
+
+function showDetail(feature) {
+  const viewList = document.getElementById('view-list');
+  const viewDetail = document.getElementById('view-detail');
+  viewDetail.innerHTML = renderDetail(feature);
+  viewList.classList.add('hidden');
+  viewDetail.classList.add('active');
+  viewDetail.scrollTop = 0;
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.add('expanded');
+  }
+  document.getElementById('back-btn').addEventListener('click', hideDetail);
+  document.getElementById('center-btn').addEventListener('click', () => flyToFeature(feature));
+}
+
+function hideDetail() {
+  document.getElementById('view-list').classList.remove('hidden');
+  document.getElementById('view-detail').classList.remove('active');
+  document.getElementById('view-detail').innerHTML = '';
+}
+
+function setView(mode) {
+  currentMode = mode;
+  document.getElementById('btn-2d').classList.toggle('active', mode === '2d');
+  document.getElementById('btn-3d').classList.toggle('active', mode === '3d');
+  if (!map) return;
+  if (mode === '3d') {
+    setTowersVisible(true);
+    map.easeTo({ pitch: 65, bearing: -17, duration: 1200 });
+  } else {
+    setTowersVisible(false);
+    map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
+  }
+}
+
+function setTowersVisible(visible) {
+  if (!map) return;
+  const vis = visible ? 'visible' : 'none';
+  if (map.getLayer('zones')) map.setLayoutProperty('zones', 'visibility', vis);
+}
+
+function initMap() {
+  map = new mapboxgl.Map({
+    container: 'map',
+    style: STYLE_URL,
+    center: [-14.05, 28.4],
+    zoom: 9.2,
+    maxZoom: 18,
+    minZoom: 7
+  });
+
+  map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+  map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+  map.on('error', (e) => {
+    console.error('Mapbox error:', e && e.error || e);
+  });
+
+  map.on('load', () => {
+    map.setFog({
+      'range': [0.5, 12],
+      'horizon-blend': 0.2,
+      'color': '#E8EEF2',
+      'high-color': '#534a44',
+      'space-color': '#0a0e1a',
+      'star-intensity': 0.15
+    });
+
+    map.addSource('mapbox-dem', {
+      type: 'raster-dem',
+      url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+      tileSize: 512,
+      maxzoom: 14
+    });
+    map.setTerrain({ source: 'mapbox-dem', exaggeration: 2.5 });
+
+    try {
+      map.setLight({
+        'anchor': 'viewport',
+        'color': '#FFFFFF',
+        'intensity': 0.5,
+        'position': [1.15, 90, 60]
+      });
+    } catch (e) { /* light may be locked by style */ }
+
+    map.addSource('entities', {
+      type: 'geojson',
+      data: GEOJSON,
+      cluster: true,
+      clusterRadius: 40,
+      clusterMaxZoom: 13
+    });
+
+    map.addSource('zones', { type: 'geojson', data: zonesData });
+
+    map.addLayer({
+      id: 'zones',
+      type: 'fill-extrusion',
+      source: 'zones',
+      layout: { visibility: 'none' },
+      paint: {
+        'fill-extrusion-color': ['get', 'color'],
+        'fill-extrusion-height': ['get', 'height'],
+        'fill-extrusion-base': 0,
+        'fill-extrusion-opacity': ['interpolate', ['linear'], ['zoom'], 9, 0, 11, 0.55],
+        'fill-extrusion-vertical-gradient': true
+      }
+    });
+
+    map.addLayer({
+      id: 'clusters-glow',
+      type: 'circle',
+      source: 'entities',
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': '#534a44',
+        'circle-radius': ['step', ['get', 'point_count'], 30, 5, 36, 15, 44, 30, 56],
+        'circle-opacity': 0.18,
+        'circle-blur': 0.6
+      }
+    });
+
+    map.addLayer({
+      id: 'clusters',
+      type: 'circle',
+      source: 'entities',
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': '#534a44',
+        'circle-radius': ['step', ['get', 'point_count'], 18, 5, 22, 15, 28, 30, 36],
+        'circle-stroke-width': 3,
+        'circle-stroke-color': '#FFFFFF'
+      }
+    });
+
+    map.addLayer({
+      id: 'cluster-count',
+      type: 'symbol',
+      source: 'entities',
+      filter: ['has', 'point_count'],
+      layout: {
+        'text-field': '{point_count_abbreviated}',
+        'text-font': ['Montserrat Bold', 'Open Sans Bold'],
+        'text-size': 13
+      },
+      paint: { 'text-color': '#FFFFFF' }
+    });
+
+    const colorExpr = ['match', ['get', 'sector']];
+    Object.entries(SECTOR_COLORS).forEach(([s, c]) => colorExpr.push(s, c));
+    colorExpr.push('#999999');
+
+    map.addLayer({
+      id: 'unclustered-point',
+      type: 'circle',
+      source: 'entities',
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-color': colorExpr,
+        'circle-radius': 8,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#FFFFFF'
+      }
+    });
+
+    map.on('click', 'clusters', async (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+      if (!features.length) return;
+      const feat = features[0];
+      const clusterId = feat.properties.cluster_id;
+      try {
+        const zoom = await map.getSource('entities').getClusterExpansionZoom(clusterId);
+        map.easeTo({ center: feat.geometry.coordinates, zoom });
+      } catch (err) {
+        console.error('Cluster expansion failed:', err);
+      }
+    });
+
+    map.on('click', 'unclustered-point', (e) => {
+      const clicked = e.features[0];
+      const full = GEOJSON.features.find(f => f.properties.id === clicked.properties.id) || clicked;
+      flyToFeature(full);
+      showDetail(full);
+    });
+
+    ['clusters', 'unclustered-point'].forEach(id => {
+      map.on('mouseenter', id, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', id, () => { map.getCanvas().style.cursor = ''; });
+    });
+
+    applyFilter();
+  });
+}
+
+load();
+</script>
+</body>
+</html>
