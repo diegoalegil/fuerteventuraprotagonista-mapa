@@ -8,13 +8,13 @@ Prototipo del mapa público para **Fuerteventura Protagonista** (Cabildo de Fuer
 
 ## Qué hay aquí
 
-- **Estilo Mapbox base** (`light-v11`) provisional. Cuando se defina el branding final se diseñará un estilo custom en Mapbox Studio con la paleta de Fuerteventura Protagonista.
+- **Estilo Mapbox base** (`light-v11`) provisional en producción. En local se usa un fallback raster de OpenStreetMap para que el mapa no quede en blanco si el token de Mapbox está restringido a GitHub Pages.
 - **Paleta corporativa**: marrón principal `#534a44`, beige `#F5EEDA`, acentos tierra (`#A87F4E`, `#8E5A3C`, `#B47545`).
 - **Tipografía**: Libre Baskerville para titulares (serif corporativo) y Montserrat para el resto.
 - **Clustering automático** — los marcadores se agrupan al solapar; un clic en el cluster hace zoom.
 - **Marcadores coloreados por sector** — 8 sectores provisionales (Administración pública, Asociación ciudadana, Cultura, Educación, Servicios sociales, Mayores, Mujer e igualdad, Medio ambiente).
 - **Filtros combinables** por sector y por municipio. Al filtrar por municipio, la cámara vuela hasta él.
-- **Vista 3D con terreno real** — DEM con exageración 2.5×, edificios sector-coloreados extruidos.
+- **Vista 3D** — edificios sector-coloreados extruidos; en producción añade terreno real con DEM de Mapbox.
 - **Búsqueda por substring** insensible a acentos y mayúsculas, contra nombre, municipio, provincia, dirección, sector y protagonista.
 - **Panel de detalle** lateral con dirección, teléfono, email, redes sociales y botón "Cómo llegar" a Google Maps.
 - **Responsive mobile** — el panel se convierte en bottom sheet expandible (tap en el handle para alternar).
@@ -24,7 +24,7 @@ Prototipo del mapa público para **Fuerteventura Protagonista** (Cabildo de Fuer
 - HTML / CSS / JavaScript vanilla. Sin frameworks ni build tools.
 - [Mapbox GL JS](https://docs.mapbox.com/mapbox-gl-js/) v3.21.
 - [Turf.js](https://turfjs.org/) v7.3 para las geometrías 3D.
-- Terreno: `mapbox://mapbox.mapbox-terrain-dem-v1`.
+- Terreno en producción: `mapbox://mapbox.mapbox-terrain-dem-v1`.
 - Tipografías: [Libre Baskerville](https://fonts.google.com/specimen/Libre+Baskerville) + [Montserrat](https://fonts.google.com/specimen/Montserrat).
 
 ## Estructura
@@ -40,12 +40,12 @@ Prototipo del mapa público para **Fuerteventura Protagonista** (Cabildo de Fuer
 ## Cómo correrlo en local
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8010 --bind 127.0.0.1
 ```
 
-Y abre `http://localhost:8000`.
+Y abre `http://127.0.0.1:8010`.
 
-> ⚠️ **Sobre el mapa en local:** el token público hardcodeado en `index.html` está restringido al dominio `diegoalegil.github.io` para evitar abuso de cuota. Por eso, al servir desde `http://localhost`, Mapbox devuelve **403** en las teselas vectoriales y se ven los marcadores sobre un fondo casi blanco. La consola muestra warnings (ya dedup-eados). Para arreglarlo en local: o bien añade `localhost` a los orígenes permitidos del token en el panel de Mapbox, o bien reemplaza el token por uno propio sin restricciones. En producción (GitHub Pages) no hay 403.
+En local, la app cambia automáticamente a un mapa base raster de OpenStreetMap para evitar los 403 del token público de Mapbox. Si quieres forzar el estilo Mapbox exacto en local, abre `http://127.0.0.1:8010/?mapbox=1` y usa un token con `127.0.0.1` permitido en el panel de Mapbox.
 
 ## Roadmap
 

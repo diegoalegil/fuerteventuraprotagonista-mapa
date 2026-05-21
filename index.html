@@ -367,9 +367,42 @@
 <script>
 mapboxgl.accessToken = 'pk.eyJ1IjoiY2FuYXJpYXMtY29udml2ZSIsImEiOiJjbXBlcHlkcHcwN25pMnBxdjJmemRzY3JoIn0.o0bCnhVjEmdYbfTAbrkKWA';
 
-const STYLE_URL = 'mapbox://styles/mapbox/light-v11';
+const MAPBOX_STYLE_URL = 'mapbox://styles/mapbox/light-v11';
+const DATA_VERSION = '2026-05-21-1';
 const GEOJSON_URL = 'entities.geojson';
 const FUERTEVENTURA_BOUNDS = [[-14.55, 28.02], [-13.78, 28.78]];
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+const SEARCH_PARAMS = new URLSearchParams(window.location.search);
+const USE_LOCAL_BASEMAP = LOCAL_HOSTS.has(window.location.hostname) && !SEARCH_PARAMS.has('mapbox');
+const LOCAL_RASTER_STYLE = {
+  version: 8,
+  glyphs: 'https://api.mapbox.com/fonts/v1/mapbox/{fontstack}/{range}.pbf?access_token=' + mapboxgl.accessToken,
+  sources: {
+    'osm-raster': {
+      type: 'raster',
+      tiles: [
+        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
+      ],
+      tileSize: 256,
+      attribution: '&copy; OpenStreetMap contributors'
+    }
+  },
+  layers: [
+    {
+      id: 'osm-raster',
+      type: 'raster',
+      source: 'osm-raster',
+      paint: {
+        'raster-opacity': 0.72,
+        'raster-saturation': -0.65,
+        'raster-contrast': -0.08
+      }
+    }
+  ]
+};
+const MAP_STYLE = USE_LOCAL_BASEMAP ? LOCAL_RASTER_STYLE : MAPBOX_STYLE_URL;
 
 const MUNICIPIO_BOUNDS = {
   'La Oliva':           [[-14.05, 28.55], [-13.78, 28.78]],
@@ -434,9 +467,10 @@ function getInitials(name) {
 }
 
 function buildLogoHTML(p) {
-  const initials = getInitials(p.name);
+  const initials = escapeHTML(getInitials(p.name));
   if (p.logo) {
-    return `<img src="${LOGO_BASE}${escapeHTML(p.logo)}.png" loading="lazy" alt="" onerror="this.parentNode.classList.add('no-logo');this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');" /><span class="logo-fallback" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials}</span>`;
+    const logoFile = encodeURIComponent(String(p.logo).trim());
+    return `<img src="${LOGO_BASE}${logoFile}.png" loading="lazy" alt="" onerror="this.parentNode.classList.add('no-logo');this.style.display='none';this.nextElementSibling&&(this.nextElementSibling.style.display='flex');" /><span class="logo-fallback" style="display:none;width:100%;height:100%;align-items:center;justify-content:center;">${initials}</span>`;
   }
   return `<span>${initials}</span>`;
 }
@@ -497,9 +531,7 @@ async function load() {
     return;
   }
   try {
-    // Cache busting: el geojson cambia con cada despliegue. Sin este parámetro
-    // el navegador podría servir una versión cacheada antigua con datos viejos.
-    const resp = await fetch(`${GEOJSON_URL}?v=${Date.now()}`, { cache: 'no-cache' });
+    const resp = await fetch(`${GEOJSON_URL}?v=${DATA_VERSION}`, { cache: 'no-cache' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     GEOJSON = await resp.json();
   } catch (err) {
@@ -887,7 +919,7 @@ function setTowersVisible(visible) {
 function initMap() {
   map = new mapboxgl.Map({
     container: 'map',
-    style: STYLE_URL,
+    style: MAP_STYLE,
     center: [-14.05, 28.4],
     zoom: 9.2,
     maxZoom: 18,
@@ -906,22 +938,24 @@ function initMap() {
   });
 
   map.on('load', () => {
-    map.setFog({
-      'range': [0.5, 12],
-      'horizon-blend': 0.2,
-      'color': '#E8EEF2',
-      'high-color': '#534a44',
-      'space-color': '#0a0e1a',
-      'star-intensity': 0.15
-    });
+    if (!USE_LOCAL_BASEMAP) {
+      map.setFog({
+        'range': [0.5, 12],
+        'horizon-blend': 0.2,
+        'color': '#E8EEF2',
+        'high-color': '#534a44',
+        'space-color': '#0a0e1a',
+        'star-intensity': 0.15
+      });
 
-    map.addSource('mapbox-dem', {
-      type: 'raster-dem',
-      url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-      tileSize: 512,
-      maxzoom: 14
-    });
-    map.setTerrain({ source: 'mapbox-dem', exaggeration: 2.5 });
+      map.addSource('mapbox-dem', {
+        type: 'raster-dem',
+        url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        tileSize: 512,
+        maxzoom: 14
+      });
+      map.setTerrain({ source: 'mapbox-dem', exaggeration: 2.5 });
+    }
 
     try {
       map.setLight({
