@@ -4,9 +4,15 @@
 <meta charset="UTF-8" />
 <title>Fuerteventura Protagonista — Mapa de agentes</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<link href="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.css" rel="stylesheet" />
-<script src="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.js"></script>
-<script src="https://unpkg.com/@turf/turf@7.3.5/turf.min.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.css" rel="stylesheet"
+      integrity="sha384-EP/H7vnAWQ5LW9GnEKFrWdLNFs5Ar50IJgtlPCBzA/mZRKZrR+/rMG5kXl5QNyCp"
+      crossorigin="anonymous" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.21.0/mapbox-gl.js"
+        integrity="sha384-5kuWTSgWp7o0q4Mw8nndFaZqiHFMR1ypa8Xlv3Ef0eXMKYdWPwa5+335eGOMhx+r"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@turf/turf@7.3.5/turf.min.js"
+        integrity="sha384-BQF91ViEyKh73QVOKMd0MfkJ7bWbu+o0g448Qfb7aP3HVPItiy/4UZ7OuTCUDKNi"
+        crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -196,7 +202,7 @@
     flex-wrap: wrap; font-size: 12px;
   }
   .mapboxgl-popup-content .pop-links a {
-    color: #A87F4E; text-decoration: none; font-weight: 600;
+    color: #8E6235; text-decoration: none; font-weight: 600;
   }
   .mapboxgl-popup-content .pop-links a:hover { text-decoration: underline; }
 
@@ -338,7 +344,7 @@
     font-size: 11px; font-weight: 600;
     transition: all 0.15s;
   }
-  .detail-link-chip:hover { background: #A87F4E; color: #FFF; }
+  .detail-link-chip:hover { background: #8E6235; color: #FFF; }
 </style>
 </head>
 <body>
@@ -859,7 +865,7 @@ function renderDetail(feature) {
   }
   let emailsBlock = '';
   if (cleanEmails.length) {
-    emailsBlock = `<div class="detail-section"><div class="detail-section-label">Email</div><div class="detail-section-value">${cleanEmails.map(x => `<a href="mailto:${escapeHTML(x)}" style="color:#A87F4E;text-decoration:none;font-weight:600;">${escapeHTML(x)}</a>`).join('<br>')}</div></div>`;
+    emailsBlock = `<div class="detail-section"><div class="detail-section-label">Email</div><div class="detail-section-value">${cleanEmails.map(x => `<a href="mailto:${escapeHTML(x)}" style="color:#8E6235;text-decoration:none;font-weight:600;">${escapeHTML(x)}</a>`).join('<br>')}</div></div>`;
   }
 
   return `
