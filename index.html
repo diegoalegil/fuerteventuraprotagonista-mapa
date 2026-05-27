@@ -105,6 +105,8 @@
   }
   .sector-pill.selected .dot { background: #FFF; box-shadow: none; }
   .sector-pill .count { font-size: 10px; opacity: 0.75; margin-left: 2px; }
+  /* Atenúa pills cuyo conteo facetado por filtros activos es 0. */
+  .sector-pill.empty:not(.selected) { opacity: 0.4; }
 
   .results-header {
     padding: 12px 24px 8px;
@@ -396,7 +398,7 @@
         <summary>Filtrar por municipio</summary>
         <div class="sector-pills" id="municipio-list" role="group" aria-label="Filtrar por municipio"></div>
       </details>
-      <details class="sector-filter">
+      <details class="sector-filter" open>
         <summary>Filtrar por sector</summary>
         <div class="sector-pills" id="sector-list" role="group" aria-label="Filtrar por sector"></div>
       </details>
@@ -871,6 +873,40 @@ function getFilteredFeatures() {
   );
 }
 
+// Recalcula los conteos de cada pill excluyendo el filtro de la misma
+// dimensión. Si filtras por municipio, las pills de sector cuentan SOLO
+// las entidades en esos municipios, y viceversa.
+function updateFacetedCounts() {
+  if (!GEOJSON) return;
+  const matches = (f, ignoreKey) => {
+    if (ignoreKey !== 'sector' && activeFilters.size > 0 && !activeFilters.has(f.properties.sector)) return false;
+    if (ignoreKey !== 'municipio' && activeMunicipios.size > 0 && !activeMunicipios.has(f.properties.municipality)) return false;
+    if (!matchesSearch(f.properties)) return false;
+    return true;
+  };
+  const sectorCounts = {};
+  const municipioCounts = {};
+  GEOJSON.features.forEach(f => {
+    if (matches(f, 'sector')) {
+      sectorCounts[f.properties.sector] = (sectorCounts[f.properties.sector] || 0) + 1;
+    }
+    if (matches(f, 'municipio')) {
+      const m = f.properties.municipality;
+      if (m) municipioCounts[m] = (municipioCounts[m] || 0) + 1;
+    }
+  });
+  const updatePill = (selector, counts, key) => {
+    document.querySelectorAll(selector).forEach(p => {
+      const n = counts[p.dataset[key]] || 0;
+      const countEl = p.querySelector('.count');
+      if (countEl) countEl.textContent = n;
+      p.classList.toggle('empty', n === 0);
+    });
+  };
+  updatePill('.sector-pill[data-sector]', sectorCounts, 'sector');
+  updatePill('.sector-pill[data-municipio]', municipioCounts, 'municipio');
+}
+
 function applyFilter() {
   const filtered = getFilteredFeatures();
   if (map && map.getSource('entities')) {
@@ -888,6 +924,7 @@ function applyFilter() {
   }
   document.getElementById('results-count').textContent = filtered.length;
   renderEntityList(filtered);
+  updateFacetedCounts();
   const btnClear = document.getElementById('btn-clear-filters');
   if (btnClear) btnClear.hidden = !hasActiveFilters();
 }
