@@ -35,7 +35,7 @@
     font-size: 20px; font-weight: 700; color: #534a44;
     letter-spacing: -0.3px; line-height: 1.15;
   }
-  .sidebar-header p { font-size: 12px; color: #888; margin-top: 4px; letter-spacing: 0.4px; text-transform: uppercase; font-weight: 600; }
+  .sidebar-header p { font-size: 12px; color: #5F6B68; margin-top: 4px; letter-spacing: 0.4px; text-transform: uppercase; font-weight: 600; }
 
   .sidebar-search {
     padding: 4px 24px 16px;
@@ -109,7 +109,7 @@
   .results-header {
     padding: 12px 24px 8px;
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.9px;
-    color: #888; font-weight: 700;
+    color: #5F6B68; font-weight: 700;
     background: #FFF;
   }
   .results-header strong { color: #534a44; font-weight: 700; }
@@ -167,13 +167,13 @@
     font-weight: 600; line-height: 1.3;
   }
   .entity-card .sector-label {
-    font-size: 9.5px; color: #888;
+    font-size: 9.5px; color: #5F6B68;
     font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
     margin-top: 4px;
   }
 
   .empty {
-    text-align: center; color: #999; padding: 36px 20px;
+    text-align: center; color: #5F6B68; padding: 36px 20px;
     font-size: 13px; font-style: italic;
   }
 
@@ -316,7 +316,7 @@
   .detail-section { margin-bottom: 16px; }
   .detail-section-label {
     font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
-    color: #888; font-weight: 700; margin-bottom: 4px;
+    color: #5F6B68; font-weight: 700; margin-bottom: 4px;
   }
   .detail-section-value {
     font-size: 13px; color: #333; line-height: 1.5;
@@ -362,9 +362,9 @@
         <span id="search-help" class="visually-hidden">Filtra la lista por nombre, municipio, provincia, dirección, sector o protagonista.</span>
       </div>
       <div class="controls" role="group" aria-label="Vista del mapa">
-        <button id="btn-2d" class="active" aria-pressed="true">2D</button>
-        <button id="btn-3d" aria-pressed="false">3D</button>
-        <button id="btn-fit">Centrar</button>
+        <button type="button" id="btn-2d" class="active" aria-pressed="true">2D</button>
+        <button type="button" id="btn-3d" aria-pressed="false">3D</button>
+        <button type="button" id="btn-fit">Centrar</button>
       </div>
       <details class="sector-filter" open>
         <summary>Filtrar por municipio</summary>
@@ -538,6 +538,25 @@ let currentMode = '2d';
 let zonesData = null;
 const seenMapErrors = new Set();
 
+// Valida que una geometría tenga coordenadas numéricas finitas dentro de los
+// rangos válidos de lat/lng. Rechaza null/string/Infinity/NaN/fuera de rango.
+function hasValidCoords(f) {
+  const c = f && f.geometry && f.geometry.coordinates;
+  if (!Array.isArray(c) || c.length !== 2) return false;
+  const [lng, lat] = c;
+  if (typeof lng !== 'number' || typeof lat !== 'number') return false;
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return false;
+  if (lng < -180 || lng > 180 || lat < -90 || lat > 90) return false;
+  return true;
+}
+
+function showFatalDataError(message) {
+  const list = document.getElementById('entity-list');
+  if (list) list.innerHTML = `<div class="empty">${escapeHTML(message)}</div>`;
+  const count = document.getElementById('results-count');
+  if (count) count.textContent = '!';
+}
+
 async function load() {
   if (typeof mapboxgl === 'undefined' || typeof turf === 'undefined') {
     console.error('Mapbox GL JS o Turf no se cargaron desde la CDN.');
@@ -546,21 +565,50 @@ async function load() {
     const count = document.getElementById('results-count');
     if (count) count.textContent = '!';
     const mapEl = document.getElementById('map');
-    if (mapEl) mapEl.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:#FAF7F1;color:#534a44;font-weight:600;text-align:center;padding:32px;">No se pudo cargar el mapa.<br><span style="font-weight:400;color:#888;font-size:13px;">Revisa la conexión y recarga.</span></div>';
+    if (mapEl) mapEl.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;background:#FAF7F1;color:#534a44;font-weight:600;text-align:center;padding:32px;">No se pudo cargar el mapa.<br><span style="font-weight:400;color:#534a44;font-size:13px;">Revisa la conexión y recarga.</span></div>';
     return;
   }
+  let raw;
   try {
     const resp = await fetch(`${GEOJSON_URL}?v=${DATA_VERSION}`, { cache: 'no-cache' });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    GEOJSON = await resp.json();
+    raw = await resp.json();
   } catch (err) {
     console.error('Error cargando entities.geojson:', err);
-    const list = document.getElementById('entity-list');
-    if (list) list.innerHTML = '<div class="empty">No se pudieron cargar las entidades. Recarga la página o revisa tu conexión.</div>';
-    const count = document.getElementById('results-count');
-    if (count) count.textContent = '!';
+    showFatalDataError('No se pudieron cargar las entidades. Recarga la página o revisa tu conexión.');
     return;
   }
+
+  // Validación de estructura GeoJSON básica.
+  if (!raw || raw.type !== 'FeatureCollection' || !Array.isArray(raw.features)) {
+    console.error('entities.geojson no es un FeatureCollection válido');
+    showFatalDataError('Los datos de entidades no tienen el formato esperado.');
+    return;
+  }
+
+  // Filtra features con coordenadas inválidas (null, string, NaN, fuera de rango).
+  // Antes esto rompía la app entera con un canvas en blanco y sin mensaje.
+  const valid = [];
+  let invalidCount = 0;
+  for (const f of raw.features) {
+    if (hasValidCoords(f)) {
+      valid.push(f);
+    } else {
+      invalidCount++;
+      console.warn('Entidad descartada por coordenadas inválidas:', f && f.properties && f.properties.name);
+    }
+  }
+
+  if (valid.length === 0) {
+    showFatalDataError('No hay entidades con ubicación válida para mostrar en el mapa.');
+    return;
+  }
+
+  if (invalidCount > 0) {
+    console.warn(`${invalidCount} entidad(es) sin ubicación válida no se muestran en el mapa.`);
+  }
+
+  GEOJSON = { type: 'FeatureCollection', features: valid };
 
   GEOJSON.features.forEach(f => {
     let s = (f.properties.sector || '').trim();
@@ -869,7 +917,7 @@ function renderDetail(feature) {
   }
 
   return `
-    <button class="back-button" id="back-btn"><span class="arrow">←</span> Volver al listado</button>
+    <button type="button" class="back-button" id="back-btn"><span class="arrow">←</span> Volver al listado</button>
     <div class="detail-content">
       <div class="detail-logo-block">
         <div class="detail-logo" style="--c:${color}">${buildLogoHTML(p)}</div>
@@ -883,7 +931,7 @@ function renderDetail(feature) {
       ${emailsBlock}
       ${links ? `<div class="detail-section"><div class="detail-section-label">Enlaces</div><div class="detail-links-row">${links}</div></div>` : ''}
       <div class="detail-actions">
-        <button class="detail-action primary" id="center-btn">Centrar en el mapa</button>
+        <button type="button" class="detail-action primary" id="center-btn">Centrar en el mapa</button>
         <a class="detail-action" id="gmaps-btn" href="https://www.google.com/maps/dir/?api=1&destination=${feature.geometry.coordinates[1]},${feature.geometry.coordinates[0]}" target="_blank" rel="noopener">Cómo llegar (Google Maps)</a>
       </div>
     </div>
@@ -967,7 +1015,10 @@ function initMap() {
     center: [-14.05, 28.4],
     zoom: 9.2,
     maxZoom: 18,
-    minZoom: 7
+    minZoom: 7,
+    // Restringe la navegación a Fuerteventura + margen. Evita que el usuario
+    // se pierda en el océano paneando lejos de la isla.
+    maxBounds: [[-15.0, 27.7], [-13.3, 29.0]]
   });
 
   map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
