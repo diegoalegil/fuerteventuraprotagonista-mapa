@@ -159,6 +159,11 @@
     box-shadow: 0 3px 12px rgba(83,74,68,0.1);
     transform: translateY(-1px);
   }
+  .entity-card.selected {
+    border-color: var(--c, #534a44);
+    background: #FBF7F0;
+    box-shadow: 0 0 0 1px var(--c, #534a44), 0 3px 12px rgba(83,74,68,0.12);
+  }
   .entity-card .sector-bar {
     width: 4px; align-self: stretch; border-radius: 2px;
     background: var(--c, #999);
@@ -562,6 +567,27 @@ let currentMode = '2d';
 let zonesData = null;
 const seenMapErrors = new Set();
 
+// Id de la entidad actualmente seleccionada (panel de detalle abierto).
+let selectedEntityId = null;
+
+function setSelectedEntity(id) {
+  selectedEntityId = id || null;
+  if (map && map.getLayer('selected-halo')) {
+    map.setFilter('selected-halo', ['==', ['get', 'id'], selectedEntityId || '__none__']);
+  }
+  document.querySelectorAll('.entity-card.selected').forEach(c => {
+    c.classList.remove('selected');
+    c.removeAttribute('aria-pressed');
+  });
+  if (selectedEntityId) {
+    const card = document.querySelector(`.entity-card[data-id="${CSS.escape(selectedEntityId)}"]`);
+    if (card) {
+      card.classList.add('selected');
+      card.setAttribute('aria-pressed', 'true');
+    }
+  }
+}
+
 // Valida que una geometría tenga coordenadas numéricas finitas dentro de los
 // rangos válidos de lat/lng. Rechaza null/string/Infinity/NaN/fuera de rango.
 function hasValidCoords(f) {
@@ -861,7 +887,9 @@ function renderEntityList(features) {
     const color = SECTOR_COLORS[p.sector] || '#999';
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'entity-card';
+    card.className = 'entity-card' + (p.id === selectedEntityId ? ' selected' : '');
+    card.dataset.id = p.id;
+    if (p.id === selectedEntityId) card.setAttribute('aria-pressed', 'true');
     card.setAttribute('aria-label', `${p.name}, ${p.sector}`);
     card.style.setProperty('--c', color);
     const loc = [p.municipality, p.province].filter(Boolean).join(', ') || p.island || p.sector;
@@ -1053,6 +1081,8 @@ function showDetail(feature, opts = {}) {
   backBtn.addEventListener('click', hideDetail);
   document.getElementById('center-btn').addEventListener('click', () => flyToFeature(feature));
   setTimeout(() => backBtn.focus(), 0);
+  // Marca la entidad como seleccionada (halo en mapa + card resaltada).
+  setSelectedEntity(feature.properties.id);
   // Refleja la entidad en la URL para que sea compartible (?entity=<id>).
   if (!opts.skipUrl) {
     const id = feature.properties.id;
@@ -1070,6 +1100,7 @@ function hideDetail() {
   viewList.classList.remove('hidden');
   viewDetail.classList.remove('active');
   viewDetail.innerHTML = '';
+  setSelectedEntity(null);
   // Devuelve el foco al campo de búsqueda como ancla razonable de la lista.
   const search = document.getElementById('search');
   if (search) setTimeout(() => search.focus(), 0);
@@ -1224,6 +1255,21 @@ function initMap() {
     const colorExpr = ['match', ['get', 'sector']];
     Object.entries(SECTOR_COLORS).forEach(([s, c]) => colorExpr.push(s, c));
     colorExpr.push('#999999');
+
+    // Halo de la entidad seleccionada — visible cuando setSelectedEntity asigna un id.
+    map.addLayer({
+      id: 'selected-halo',
+      type: 'circle',
+      source: 'entities',
+      filter: ['==', ['get', 'id'], '__none__'],
+      paint: {
+        'circle-color': 'rgba(83, 74, 68, 0.18)',
+        'circle-radius': 22,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#534a44',
+        'circle-stroke-opacity': 0.7
+      }
+    });
 
     map.addLayer({
       id: 'unclustered-point',
